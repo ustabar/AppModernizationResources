@@ -1,0 +1,40 @@
+## https://4sysops.com/archives/install-docker-offline-on-windows-server-2016/
+
+$URL="https://download.docker.com/win/static/stable/x86_64/docker-20.10.9.zip"
+## docker-20.10.24.zip   
+
+invoke-webrequest -UseBasicparsing -Outfile docker.zip -Uri $URL
+
+# Install Docker
+Install-WindowsFeature containers | Out-Null
+
+# Extract the archive.
+Expand-Archive docker.zip -DestinationPath $Env:ProgramFiles -Force
+
+# Add Docker to the path for the current session and to PATH to persist across sessions.
+$env:path += ";$env:ProgramFiles\docker"
+$newPath = "$env:ProgramFiles\docker;" + [Environment]::GetEnvironmentVariable("PATH", [EnvironmentVariableTarget]::Machine)
+[Environment]::SetEnvironmentVariable("PATH", $newPath, [EnvironmentVariableTarget]::Machine)
+
+# Register the Docker daemon as a service.
+dockerd --register-service
+
+# Start the Docker service.
+Start-Service docker
+
+docker pull hello-world:nanoserver-sac2016
+
+# list all available images
+docker images
+
+# make sure docker service is running
+Get-Service *docker
+
+# run the test container
+docker run hello-world:nanoserver-sac2016
+
+docker save hello-world > img01.tar
+
+copy img01.tar to target (offline) machine
+
+docker import img01.tar hello-world

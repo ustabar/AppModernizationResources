@@ -1,0 +1,367 @@
+Install Docker on Windows Server
+
+	## https://docs.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=Windows-Server
+
+demoUbuntu
+	azureuser
+	ssh : downloads/demoUbuntu_key.pem
+	ssh -i C:\Downloads\demoUbuntu_key.pem azureuser@51.124.
+
+find ubuntu version
+	lsb_release -a
+
+find ubuntu processor info
+
+	## https://www.tecmint.com/check-linux-cpu-information/
+	
+	cat /proc/cpuinfo
+	lshw
+
+Demo2019
+	mstsc 20.229.86.139
+
+Download packages
+	
+	## https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/
+
+	containerd.io_1.5.11-1_amd64.deb
+	## https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/containerd.io_1.5.11-1_amd64.deb
+
+	docker-ce-cli_20.10.9~3-0~ubuntu-focal_amd64.deb
+	## https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/docker-ce-cli_20.10.9~3-0~ubuntu-focal_amd64.deb
+
+	docker-ce_20.10.9~3-0~ubuntu-focal_amd64.deb
+	## https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/docker-ce_20.10.9~3-0~ubuntu-focal_amd64.deb
+
+	curl -L "https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/containerd.io_1.5.11-1_amd64.deb" -o containerd.io_1.5.11-1_amd64.deb
+	curl -L "https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/docker-ce-cli_20.10.9~3-0~ubuntu-focal_amd64.deb" -o docker-ce-cli_20.10.9_3-0_ubuntu-focal_amd64.deb
+	curl -L "https://download.docker.com/linux/ubuntu/dists/focal/pool/stable/amd64/docker-ce_20.10.9~3-0~ubuntu-focal_amd64.deb" -o docker-ce_20.10.9_3-0_ubuntu-focal_amd64.deb
+
+	sudo chmod +x docker-ce-cli_20.10.9_3-0_ubuntu-focal_amd64.deb
+	sudo chmod +x docker-ce_20.10.9_3-0_ubuntu-focal_amd64.deb
+	sudo chmod +x containerd.io_1.5.11-1_amd64.deb
+
+Offline installation of docker engine
+
+	sudo dpkg -i containerd.io_1.5.11-1_amd64.deb docker-ce-cli_20.10.9_3-0_ubuntu-focal_amd64.deb docker-ce_20.10.9_3-0_ubuntu-focal_amd64.deb
+	systemctl status docker.service
+	sudo chmod 666 /var/run/docker.sock
+
+   docker --version
+
+Sample image creation
+	
+	docker pull hello-world
+	docker run hello-world
+	docker images
+	docker ps
+	docker ps -a
+
+Copy docker image to offline server	
+
+	docker save hello-world:latest | gzip > test.tar.gz
+	sudo chmod +x test.tar.gz
+	docker rmi hello-world
+	docker load < test.tar.gz
+
+docker-compose install on ubuntu
+
+	curl -Lo ./docker-compose https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)
+	chmod +x ./docker-compose 
+	mv ./docker-compose ~/.local/bin/docker-compose
+	docker-compose --version
+
+Create local kubernetes 
+
+	## docker pull kindest/node:v1.20.2
+	docker pull kindest/node:v1.24.0
+
+	## docker save kindest/node:v1.20.2 | gzip > kindest-node-v1-20-2.tar.gz
+	docker save kindest/node:v1.24.0 | gzip > kindest-node-v1-24-0.tar.gz
+
+  docker save barut/my-nginx:v0001 | gzip > barut/my-nginx-v0001.tar.gz
+
+
+	## sudo chmod +x kindest-node-v1-20-2.tar.gz
+	## chmod +x ./kindest-node-v1-20-2.tar.gz
+	sudo chmod +x kindest-node-v1-24-0.tar.gz
+	chmod +x ./kindest-node-v1-24-0.tar.gz
+
+	curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.12.0/kind-linux-amd64
+	chmod +x ./kind
+	mkdir -p ~/.local/bin
+	mv ./kind ~/.local/bin/kind
+	## kind create cluster --name k8dev --image kindest/node:v1.20.2
+	kind create cluster --name k8dev --image kindest/node:v1.24.2
+
+kubectl install
+
+      curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+	sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+	chmod +x kubectl
+	mv ./kubectl /usr/local/bin/kubectl
+	# and then append (or prepend) ~/.local/bin to $PATH
+	
+	kubectl version --client --output=yaml
+	kubectl cluster-info
+
+	source /usr/share/bash-completion/bash_completion
+	echo 'source <(kubectl completion bash)' >>~/.bashrc
+	echo 'alias k=kubectl' >>~/.bashrc
+	echo 'complete -F __start_kubectl k' >>~/.bashrc
+
+	# re-start the bash
+
+Move images to kind cluster
+
+	kind get clusters
+	kind load docker-image myregistry.domain.com/redis:6.0.8 myregistry.domain.com/azure-vote-front:v1 --name k8dev
+
+Apply vote-app
+
+	cd /home/azureuser/download/azure-voting-app-redis
+	nano azure-vote-all-in-one-redis.yaml
+	k get svc -A
+	kubectl port-forward svc/azure-vote-front 8111:80
+	curl localhost:8111
+
+install local docker registry
+
+	docker run -d -p 5000:5000 --restart=always --name registry registry
+	docker ps
+	docker tag kindest/node:v1.20.2 localhost:5000/kindest/node:v1.20.2
+	docker images
+	docker push localhost:5000/kindest/node:v1.20.2
+	docker pull localhost:5000/kindest/node:v1.20.2
+	docker rmi localhost:5000/kindest/node:v1.20.2
+	docker pull localhost:5000/kindest/node:v1.20.2
+
+	docker run -d \
+	  --restart=always \
+	  --name registry \
+	  -v "$(pwd)"/auth:/certs \
+	  -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+	  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+	  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+	  -p 443:443 \
+	  registry:2
+
+Install ingress on to kind cluster
+
+	## https://kind.sigs.k8s.io/docs/user/ingress/
+	## https://kubernetes.io/docs/tasks/configure-pod-container/assign-pods-nodes/
+
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+	kubectl wait --namespace ingress-nginx   --for=condition=ready pod   --selector=app.kubernetes.io/component=controller   --timeout=90s
+	k get pods -A
+	k describe node k8dev-control-plane
+	k describe pods -n ingress-nginx ingress-nginx-controller-64c6d79584-kttsl
+	k get nodes
+	k label nodes k8dev-control-plane ingress-ready=true
+	k get nodes
+	k get pods -A
+
+myregistry.domain.com/redis:6.0.8
+myregistry.domain.com/azure-vote-front:v1
+
+
+
+
+****************************************
+References
+****************************************
+
+	https://help.ubuntu.com/lts/installation-guide/armhf/ch02s01.html
+	https://www.youtube.com/watch?v=KX0MB29HCV4
+	https://docs.docker.com/engine/reference/commandline/save/
+	https://docs.docker.com/engine/reference/commandline/load/
+	https://docs.docker.com/engine/install/ubuntu/#install-from-a-package
+	https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd
+
+Get started: Prep Windows for containers
+	https://docs.microsoft.com/en-us/virtualization/windowscontainers/quick-start/set-up-environment?tabs=Windows-Server
+
+How to install Docker the Chocolatey way
+	https://stefanscherer.github.io/how-to-install-docker-the-chocolatey-way/
+
+Kind installation
+	https://kind.sigs.k8s.io/docs/user/quick-start/#installation
+	https://docs.docker.com/engine/reference/commandline/save/
+	https://docs.docker.com/engine/reference/commandline/load/
+	https://kind.sigs.k8s.io/docs/design/node-image/
+
+kubectl installation
+	https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+
+Issues:
+	1- Local docker repository
+	2- Connect local repo to private cluster (kind version)
+	3- Offline ingress and Load Balancer installation (HA-Proxy or alternative) 		<============
+	4- Install Java app on Docker and kubernetes
+
+Install VSCODE
+
+	wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | sudo apt-key add -
+	sudo add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"
+	sudo apt update
+	sudo apt install code
+
+Docker Host error
+
+	systemctl status docker.service
+	## Failed to start docker.service: Unit docker.service is masked
+	sudo systemctl unmask docker
+	sudo systemctl start docker
+
+Docker remove
+	## Step 1
+
+	dpkg -l | grep -i docker
+	
+	## To identify what installed package you have:
+
+	## Step 2
+
+	sudo apt-get purge -y docker-engine docker docker.io docker-ce docker-ce-cli
+	sudo apt-get autoremove -y --purge docker-engine docker docker.io docker-ce  
+	
+	## The above commands will not remove images, containers, volumes, 
+	   or user created configuration files on your host. 
+
+	## If you wish to delete all images, containers, and volumes run the following commands:
+
+	sudo rm -rf /var/lib/docker /etc/docker
+	sudo rm /etc/apparmor.d/docker
+	sudo groupdel docker
+	sudo rm -rf /var/run/docker.sock
+
+	## You have removed Docker from the system completely.
+
+Login Local Container Registry
+
+	## https://linuxhint.com/bash_base64_encode_decode/
+	## https://kubernetes.io/docs/concepts/configuration/secret/
+
+	echo 'linuxhint.com' | base64
+	echo 'bGludXhoaW50LmNvbQo=' | base64 --decode
+
+kubectl create secret docker-registry testuser-registry-secret --docker-server=localhost:5000 --docker-username=YXp1cmV1c2VyCg== --docker-password=RGVuZW1lITEyMzQ1Cg== --docker-email=noreply@mymail.com
+
+	## https://docs.starlingx.io/operations/k8s_docker_reg_management.html#:~:text=A%20local%20Docker%20registry%20is,store%20hosted%20application%20container%20images.
+
+To understand dockerd problems
+
+	sudo dockerd --debug
+	sudo systemctl stop docker
+
+To get IP address
+
+	## https://linuxconfig.org/how-to-find-my-ip-address-on-ubuntu-20-04-focal-fossa-linux
+
+How to create a Self-Signed SSL Certificate on Ubuntu 18.04
+
+	## https://docs.docker.com/registry/insecure/
+
+	mkdir -p certs
+	openssl req \
+	  -newkey rsa:4096 -nodes -sha256 -keyout certs/domain.key \
+	  -addext "subjectAltName = DNS:myregistry.domain.com" \
+	  -x509 -days 365 -out certs/domain.crt
+
+	## https://docs.docker.com/registry/deploying/#get-a-certificate
+
+	cd /home/azureuser/download/repo
+
+	docker run -d \
+	  --restart=always \
+	  --name registry \
+	  -v "$(pwd)"/certs:/certs \
+	  -e REGISTRY_HTTP_ADDR=0.0.0.0:443 \
+	  -e REGISTRY_HTTP_TLS_CERTIFICATE=/certs/domain.crt \
+	  -e REGISTRY_HTTP_TLS_KEY=/certs/domain.key \
+	  -p 443:443 \
+	  registry:2
+
+	docker pull ubuntu:16.04
+	docker tag ubuntu:16.04 myregistry.domain.com/my-ubuntu
+	docker push myregistry.domain.com/my-ubuntu
+	docker pull myregistry.domain.com/my-ubuntu
+
+	## add below line to host file
+	sudo nano /etc/hosts
+	127.0.0.1 myregistry.domain.com
+
+	cd azure-voting-app-redis/
+	k delete -f azure-vote-all-in-one-redis.yaml
+
+Create a Pod that uses your Secret
+	
+	## https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+	## https://kubernetes.io/docs/concepts/containers/images/
+ 	## https://medium.com/@j.wahidin/kubernetes-day-2-operation-working-with-self-signed-image-registry-bd3c7ff1498d
+
+	cat ~/.docker/config.json
+
+	kubectl create secret generic regcred \
+	    --from-file=.dockerconfigjson=/home/azureuser/.docker/config.json \
+	    --type=kubernetes.io/dockerconfigjson
+
+Mount SSL certificates in the Pod with Kubernetes secret
+
+	## https://faun.pub/mount-ssl-certificates-in-kubernetes-pod-with-secret-8aca220896e6
+	## https://docs.docker.com/engine/security/certificates/
+
+install node-shell
+
+	## https://github.com/kvaps/kubectl-node-shell
+
+Copy local images to kind cluster
+
+	## https://kind.sigs.k8s.io/docs/user/quick-start/#loading-an-image-into-your-cluster
+        ## https://faun.pub/creating-a-kubernetes-cluster-for-development-with-kind-189df2cb0792
+
+	## COPY	
+	kind load docker-image custom-nginx:v1 --name clusterName
+
+	## LIST : 795 -> kind container id
+	docker exec -it 795 crictl images
+
+Call Https from kind 
+
+	curl --cacert /repo/auth/domain.crt https://localhost
+
+Creating Azure Kubernetes Service with Application Gateway Ingress using Terraform and deploying a sample app
+
+	## https://thomasthornton.cloud/2021/10/25/creating-azure-kubernetes-service-with-application-gateway-ingress-using-terraform-and-deploying-a-sample-app/
+
+Setting Up An Ingress Controller
+
+	## https://kind.sigs.k8s.io/docs/user/ingress/
+
+## https://kind.sigs.k8s.io/docs/user/quick-start/#configuring-your-kind-cluster
+## https://cloud.google.com/kubernetes-engine/docs/how-to/exposing-apps
+## https://banzaicloud.com/blog/kind-ingress/
+## https://faun.pub/creating-a-kubernetes-cluster-for-development-with-kind-189df2cb0792
+
+Windows Labs
+
+	## https://github.com/docker/labs/tree/master/windows
+
+Java Sample
+	## https://www.youtube.com/watch?v=-Mk3ikAJ704	
+	## https://www.youtube.com/watch?v=mean7OgfF44
+	## https://www.youtube.com/watch?v=6rGMvws--kk
+	## https://www.youtube.com/results?search_query=dockerize+java+application
+
+	1- Create java file in 
+		/home/azureuser/download/java-app/JavaExample.java
+	2- Install Java compiler
+		sudo apt install default-jdk
+	3- Compile the code
+		javac JavaExample.java
+	4- Run the compiled code
+		java JavaExample
+	5- Create dockerfile and build it
+		docker build -t my-java-app:v1 .
+	6- Run the app
+		docker run my-java-app:v1
